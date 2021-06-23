@@ -9,23 +9,22 @@
 const uint32_t INIT_RETRY = 1 << 9; // 512 milliseconds
 const uint32_t MAX_RETRY = 1 << 30;
 
-const char * t0 PROGMEM = "/state";
-const char * t1 PROGMEM = "/command";
-const char * t2 PROGMEM = "/log";
+const char * t0 = "/state";
+const char * t1 = "/command";
+const char * t2 = "/log";
 
-const char * topicNames[] PROGMEM = { t0, t1, t2 };
+const char * topicNames[] = { t0, t1, t2 };
 
-MQTTClass MQTT;
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
+MQTTClass MQTT;
 
 MQTTClass::MQTTClass() : retry(INIT_RETRY) {
     clientId = LLWifi.macaddress();
-    mqttClient.setKeepAlive( (uint16_t) Config.sonarinterval/1000 );
 
     for( int i = 0; i < 3; i++ ) {
         strcpy( topics[i], clientId.c_str());
-        strncat_P(topics[i], (const char*)pgm_read_dword(&(topicNames[i])), (size_t)32);
+        strncat( topics[i], topicNames[i], (size_t)32);
     }
 }
 
@@ -62,15 +61,13 @@ boolean MQTTClass::publish( topic_t t, const char * buf) {
 }
 
 void MQTTClass::setup() {
+    uint16_t keepAlive = (uint16_t)( Config.sonarinterval/500);
+    Serial << F("Setting keepalive:") << keepAlive << endl;
+    mqttClient.setKeepAlive( keepAlive );
+
     (void)reconnect();
 }
 
 uint32_t MQTTClass::loop() {
     return reconnect();
-    char buff[64];
-    snprintf_P( buff, sizeof(buff) - 1, PSTR("Millis: %ld"), millis() );
-    if( publish( STATE_TOPIC, buff) )
-        Serial << F("Publish succeeded.") << endl;
-    else
-        Serial << F("Publish failed") << endl;
 }
