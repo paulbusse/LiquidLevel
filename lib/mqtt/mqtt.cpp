@@ -20,12 +20,7 @@ PubSubClient mqttClient(wifiClient);
 MQTTClass MQTT;
 
 MQTTClass::MQTTClass() : retry(INIT_RETRY) {
-    clientId = LLWifi.macaddress();
 
-    for( int i = 0; i < 3; i++ ) {
-        strcpy( topics[i], clientId.c_str());
-        strncat( topics[i], topicNames[i], (size_t)32);
-    }
 }
 
 uint32_t MQTTClass::reconnect() {
@@ -61,8 +56,12 @@ boolean MQTTClass::publish( topic_t t, const char * buf) {
 }
 
 void MQTTClass::setup() {
-    uint16_t keepAlive = (uint16_t)( Config.sonarinterval/500);
-    Serial << F("Setting keepalive:") << keepAlive << endl;
+    clientId = LLWifi.macaddress();
+     for( int i = 0; i < 3; i++ ) {
+        strcpy( topics[i], clientId.c_str());
+        strncat( topics[i], topicNames[i], (size_t)32);
+    }
+   uint16_t keepAlive = (uint16_t)( Config.sonarinterval/500);
     mqttClient.setKeepAlive( keepAlive );
 
     (void)reconnect();

@@ -3,6 +3,7 @@
 #include <config.h>
 #include <wifi.h>
 #include <mqtt.h>
+#include <measure.h>
 
 #define LED 2
 
@@ -19,21 +20,7 @@ void setup() {
   Config.setup();
   LLWifi.setup();
   MQTT.setup();
-}
-
-uint32_t do_publish() {
-  char buff[64];
-  snprintf_P( buff, sizeof(buff) - 1, PSTR("Millis: %ld"), millis() );
-  if( MQTT.publish( STATE_TOPIC, buff) ) {
-      Serial << F("Publish succeeded.") << endl;
-      retry = INIT_RETRY;
-      return 0;
-  }
-
-  Serial << F("Publish failed") << endl;
-  retry <<= 1;
-  if( retry > MAX_RETRY) retry = MAX_RETRY;
-  return retry;
+  Measure.setup();
 }
 
 void loop() {
@@ -43,7 +30,7 @@ void loop() {
   uint32_t ms = Config.loop();
   if( !ms ) ms = LLWifi.loop();
   if( !ms ) ms = MQTT.loop();
-  if( !ms ) ms = do_publish();
+  if( !ms ) ms = Measure.loop();
   
   if( !ms || ms > Config.sonarinterval)
     ms = Config.sonarinterval;

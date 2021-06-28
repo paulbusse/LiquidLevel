@@ -5,6 +5,9 @@
 #include <__secret.h>
 #include "config.h"
 
+// The json part is here for future enhancements
+// That should allow configs to be updated over MQTT
+
 ConfigClass Config;
 DynamicJsonDocument ConfigClass::json(CONFIGLENGTH);
 
@@ -37,14 +40,9 @@ struct configconfig_t {
     { "mqttport", {.ic = { 1024, 65535, 1883 } } },
     { "sonardepth", {.ic = { 20, 500, 100 } } },
     { "sonarcount", {.ic = { 1, 100, 10 } } },
-    { "sonarinterval", {.ic = { 1 * SEC, 32767 * SEC, 10 * SEC } } },
+    { "sonarinterval", {.ic = { 1 * SEC, 32767 * SEC, 30 * SEC } } },
     { "sonarlpercm", {.fc = { 0.01, FLT_MAX, 1.0 } } }
 };
-
-ConfigClass::ConfigClass()
-{
-    // empty
-}
 
 void ConfigClass::_config( configfield_t configfield, const char ** attrib ) {
     const char * field = cc[configfield].name;
@@ -118,17 +116,10 @@ void ConfigClass::_cfginterval( configfield_t configfield, uint32_t *attrib){
 void ConfigClass::setup() {
     Serial << F("Configuring ...") << endl;
     const char * input = "{\"production\": 0 }";
-    /*LittleFS.begin();
-
-    File cfgfile = LittleFS.open("/config.json", "r");
-    */
+   
     DeserializationError error = deserializeJson(json, input, strlen(input));
     if (error)
         Serial << F("Failed to read file, using default configuration") << endl;
-    /*
-    cfgfile.close();
-    // LittleFS.end(); // We keep it unmounted unless needed
-    */
 
     _config(WIFISSID, & wifissid );
     _config(WIFIPWD, &wifipwd);

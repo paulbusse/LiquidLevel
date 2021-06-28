@@ -35,7 +35,6 @@ class ConfigClass {
         uint16_t     sonarcount;
         uint16_t     sonardepth;
 
-        ConfigClass();
         void setup();
         uint32_t loop();
 
