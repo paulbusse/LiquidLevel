@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <Streaming.h>
 
 #include <pins_arduino.h>
@@ -28,9 +27,9 @@ void MeasureClass::setup() {
     pinMode(ECHO, INPUT);
 }
 
-uint32_t MeasureClass::_publish(float distance) {
+uint32_t MeasureClass::_publish(float distance, float average, float rsd) {
   char buff[64];
-  snprintf_P( buff, sizeof(buff) - 1, PSTR("distance: %.2f"), distance );
+  snprintf_P( buff, sizeof(buff) - 1, PSTR("distance: %.2f; average: %.2f; rsd: %.2f"), distance, average, rsd );
   if( MQTT.publish( STATE_TOPIC, buff) ) {
       Serial << F("Publish succeeded.") << endl;
       retry = INIT_RETRY;
@@ -48,7 +47,8 @@ uint32_t MeasureClass::loop() {
     uint32_t durations[nSamples];
     uint32_t sum = 0;
     float average;
-    float stdev;
+    float stddev;
+    float rsd;
     float distance;
 
     Serial.println("Start measuring");
@@ -63,18 +63,22 @@ uint32_t MeasureClass::loop() {
 
         durations[i] = pulseIn(ECHO, HIGH);   //Read echo pin, time in microseconds
         sum += durations[i];
-        Serial << F("Measured duration") << durations[i] << endl;
+        Serial << F("Measured duration: ") << durations[i] << endl;
         delay(1000);
     }
     
     average = (float)sum / (float) nSamples;
-    stdev = 0;
+    stddev = 0;
     for( int i = 0; i < 10; i ++) {
-        stdev += (durations[i] - average) * (durations[i] - average);
+        stddev += (durations[i] - average) * (durations[i] - average);
     }
-    stdev = sqrt( stdev/(nSamples - 1.0) );
+    stddev = sqrt( stddev/(nSamples - 1.0) );
+    rsd = (stddev * 100)/ average;
+    distance = average * CMpMICROs;
 
-    if( stdev > 20.0 ) {
+    Serial << F("Average: ") << average << F(" RSD: ") << rsd << endl;
+    _publish(distance, average, rsd); // SHOULD MOVE BELOW
+    if( stddev > 20.0 ) {
         Serial << F("Issues with the samples. Ignoring samples.") << endl;
         retry <<= 1;
         if( retry > MAX_RETRY)
@@ -82,11 +86,11 @@ uint32_t MeasureClass::loop() {
         return retry;
     }
 
-    distance = average * CMpMICROs;        //Calculating actual/real distance
+            //Calculating actual/real distance
     retry = INIT_RETRY;
 
     Serial.print("Distance = ");        //Output distance on arduino serial monitor 
     Serial.println(distance);
-    _publish(distance);
+    
     return 0;
 }
