@@ -4,3 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 include/__secret.h
+firmware.elf
+html

@@ -1,4 +1,4 @@
-#include <float.h>
+#include <cfloat>
 #include <Arduino.h>
 #include <Streaming.h>
 #include <LittleFS.h>
@@ -7,6 +7,8 @@
 
 // The json part is here for future enhancements
 // That should allow configs to be updated over MQTT
+
+const char * path = "/config2.json";
 
 ConfigClass Config;
 DynamicJsonDocument ConfigClass::json(CONFIGLENGTH);
@@ -64,10 +66,10 @@ void ConfigClass::_config( configfield_t configfield, uint16_t *attrib) {
     if( json[field].isNull() )
         *attrib = dflt;
     else {
-        int32_t jfield = json[field];
-        if( jfield < min ) *attrib = min;
-        else if( jfield > max ) *attrib = max;
-        else *attrib = jfield;
+        int32_t value = json[field];
+        if( value < min ) *attrib = min;
+        else if( value > max ) *attrib = max;
+        else *attrib = value;
     }
     Serial << field << F(": ") << * attrib << endl;
 }
@@ -81,10 +83,10 @@ void ConfigClass::_config( configfield_t configfield, float *attrib){
     if( json[field].isNull() )
         *attrib = dflt;
     else {
-        float jfield = json[field];
-        if( jfield < min ) *attrib = min;
-        else if( jfield > max ) *attrib = max;
-        else *attrib = jfield;
+        float value = json[field];
+        if( value < min ) *attrib = min;
+        else if( value > max ) *attrib = max;
+        else *attrib = value;
     }
     Serial << field << F(": ") << * attrib << endl;
 }
@@ -98,6 +100,7 @@ void ConfigClass::_cfginterval( configfield_t configfield, uint32_t *attrib){
     if( json[field].isNull() )
         *attrib = dflt;
     else {
+        Serial << "cfginterval: " << json[field].as<const char *>() << endl;
         const char * s = json[field];
         uint32_t i32 = json[field];
         switch( s[strlen(s) - 1]) {
@@ -113,13 +116,70 @@ void ConfigClass::_cfginterval( configfield_t configfield, uint32_t *attrib){
     Serial << field << F(": ") << * attrib << endl;
 }
 
+E_config_t ConfigClass::_getConfig( char * buf, size_t n) {
+     Serial << F("Start _getconfig") << endl;
+
+    if( !LittleFS.exists(path) )
+        return E_NOTEXISTS;
+
+    File configFile = LittleFS.open(path, "r");
+    if (!configFile)
+        return E_OPEN;
+
+    size_t size = configFile.size();
+    if (size > n)
+        return E_SIZE;
+
+    Serial << "Getconfig: " << buf << endl;
+    configFile.readBytes(buf, size);
+    configFile.close();
+
+    auto error = deserializeJson(json, buf);
+    if (error) {
+        Serial.println("Failed to parse config file. Removing file.");
+        LittleFS.remove(path);
+        return E_NOTEXISTS;
+    }
+ Serial << F("End _getconfig") << buf << endl;
+    return E_NONE;
+}
+
+E_config_t ConfigClass::_saveConfig() {
+
+    Serial << F("Start _saveconfig") << endl;
+
+  File configFile = LittleFS.open(path, "w");
+  if (!configFile) {
+    Serial.println("Failed to open config file for writing");
+    return E_OPEN;
+  }
+  json[WIFISSID] = wifissid;
+  json[WIFIPWD] = wifipwd;
+  json[MQTTSERVER] = mqttserver;
+  json[MQTTPORT] = mqttport;
+  json[SONARDEPTH] = sonardepth;
+  json[SONARCOUNT] = sonarcount;
+  json[SONARLPERCM] = sonarlpercm;
+  serializeJson(json, configFile);
+
+  configFile.close();
+  Serial << F("End _saveconfig") << endl;
+  return E_NONE;
+}
+
+
 void ConfigClass::setup() {
-    Serial << F("Configuring ...") << endl;
-    const char * input = "{\"production\": 0 }";
-   
-    DeserializationError error = deserializeJson(json, input, strlen(input));
-    if (error)
-        Serial << F("Failed to read file, using default configuration") << endl;
+    char buf[CONFIGLENGTH];
+
+    Serial << F("Setup config.") << endl;
+
+    LittleFS.begin();
+
+    E_config_t ect =_getConfig(buf, CONFIGLENGTH);
+
+    Serial << F("Getconfig returned") << ect << endl;
+    if( ect != E_NONE )
+        Serial << F("No configuration file found. Using defaults") << endl;
 
     _config(WIFISSID, & wifissid );
     _config(WIFIPWD, &wifipwd);
@@ -130,6 +190,12 @@ void ConfigClass::setup() {
     _config(SONARLPERCM, &sonarlpercm);
 
     _cfginterval(SONARINTERVAL, &sonarinterval);
+
+    if( ect == E_NOTEXISTS )
+        _saveConfig();
+    
+    Serial << F("Setup config. Done.") << endl;
+
     return;
 }
 

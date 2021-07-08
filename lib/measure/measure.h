@@ -4,7 +4,7 @@
 class MeasureClass {
     private:
         uint32_t retry;
-        uint32_t _publish(float);
+        uint32_t _publish(float, float, float);
 
     public:
              MeasureClass();

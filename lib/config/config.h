@@ -14,6 +14,14 @@ enum configfield_t {
     SONARLPERCM
 };
 
+enum E_config_t {
+    E_NONE,
+    E_NOTEXISTS,
+    E_OPEN,
+    E_SIZE,
+    E_PARSE
+};
+
 const int CONFIGLENGTH = 1024;
 
 class ConfigClass {
@@ -24,6 +32,9 @@ class ConfigClass {
         void _config( configfield_t, uint16_t *);
         void _config( configfield_t, float *);
         void _cfginterval( configfield_t, uint32_t *);
+
+        E_config_t _getConfig( char *, size_t);
+        E_config_t _saveConfig( );
 
     public:
         const char * wifissid;
